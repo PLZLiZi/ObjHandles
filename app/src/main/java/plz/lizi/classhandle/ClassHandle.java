@@ -211,7 +211,7 @@ public class ClassHandle {
 		if (klass != null) {
 			return klass;
 		}
-		klass = (Class<?>) LOOKUP.findVirtual(ClassLoader.class, "defineClass", MethodType.methodType(Class.class, String.class, byte[].class, int.class, int.class, ProtectionDomain.class)).invoke(loader, handleName, bytes, 0, bytes.length, null);
+		klass = (Class<?>) LOOKUP.findVirtual(ClassLoader.class, "defineClass", MethodType.methodType(Class.class, String.class, byte[].class, int.class, int.class, ProtectionDomain.class)).invoke(loader, className, bytes, 0, bytes.length, null);
 		setClassName(className);
 		return klass;
 	}
@@ -227,7 +227,7 @@ public class ClassHandle {
 		if (loader == null || loader == ClassLoader.getPlatformClassLoader()) {
 			flags |= 8;
 		}
-		klass = (Class<?>) LOOKUP.findStatic(ClassLoader.class, "defineClass0", MethodType.methodType(Class.class, ClassLoader.class, Class.class, String.class, byte[].class, int.class, int.class, ProtectionDomain.class, boolean.class, int.class, Object.class)).invoke(loader, ClassHandle.class, handleName, bytes, 0, bytes.length, null, true, flags, null);
+		klass = (Class<?>) LOOKUP.findStatic(ClassLoader.class, "defineClass0", MethodType.methodType(Class.class, ClassLoader.class, Class.class, String.class, byte[].class, int.class, int.class, ProtectionDomain.class, boolean.class, int.class, Object.class)).invoke(loader, ClassHandle.class, className, bytes, 0, bytes.length, null, true, flags, null);
 		setClassName(className);
 		hiddenClassMap.put(handleName, klass);
 		return klass;
