@@ -1,0 +1,26 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "gradle",
+			"id": "d:\\PLZLiZi\\Java\\ClassHandleapp:buildapp",
+			"script": "app:build",
+			"description": "Assembles and tests this project.",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"project": "app",
+			"buildFile": "D:\\PLZLiZi\\Java\\ClassHandle\\app\\build.gradle",
+			"rootProject": "ClassHandle",
+			"projectFolder": "d:\\PLZLiZi\\Java\\ClassHandle",
+			"workspaceFolder": "d:\\PLZLiZi\\Java\\ClassHandle",
+			"args": "",
+			"javaDebug": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"label": "gradle: app:build"
+		}
+	]
+}
