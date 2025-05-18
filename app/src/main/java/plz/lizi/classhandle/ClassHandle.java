@@ -43,7 +43,8 @@ public class ClassHandle {
 	private static Instrumentation INST;
 	private Class<?> klass;
 	private byte[] bytes;
-	private String name;
+	private String handleName;
+	private String className;
 	private ClassLoader loader;
 	private static Map<String, Class<?>> hiddenClassMap = new HashMap<>();
 
@@ -57,18 +58,17 @@ public class ClassHandle {
 				vm.detach();
 			} catch (Exception e) {
 				try {
-					Files.copy(ClassHandle.class.getResourceAsStream("/plz/lizi/classhandle/" + dll()), Path.of(System.getProperty("user.dir") + dll()), StandardCopyOption.REPLACE_EXISTING);
+					Files.copy(ClassHandle.class.getResourceAsStream("/plz/lizi/classhandle/" + dll()), Path.of(System.getProperty("user.dir") + "\\" + dll()), StandardCopyOption.REPLACE_EXISTING);
 				} catch (IOException e1) {
 					e1.printStackTrace();
 				}
-				System.load(System.getProperty("user.dir") + dll());
+				System.load(System.getProperty("user.dir") + "\\" + dll());
 				INST = makeInstrumentation();
-				throw new RuntimeException(e);
 			}
 		} else {
 			try {
-				Files.copy(ClassHandle.class.getResourceAsStream("/plz/lizi/classhandle/" + dll()), Path.of(System.getProperty("user.dir") + dll()), StandardCopyOption.REPLACE_EXISTING);
-				System.load(System.getProperty("user.dir") + dll());
+				Files.copy(ClassHandle.class.getResourceAsStream("/plz/lizi/classhandle/" + dll()), Path.of(System.getProperty("user.dir") + "\\" + dll()), StandardCopyOption.REPLACE_EXISTING);
+				System.load(System.getProperty("user.dir") + "\\" + dll());
 				INST = makeInstrumentation();
 			} catch (Exception e) {
 				throw new RuntimeException("Can't init INST");
@@ -120,24 +120,54 @@ public class ClassHandle {
 
 	public ClassHandle(Class<?> klass) {
 		this.klass = klass;
-		this.name = klass.getName();
+		this.handleName = klass.getName();
+		this.className = handleName;
 		this.loader = klass.getClassLoader();
+	}
+
+	public ClassHandle(String name, ClassLoader loader, Class<?> lookup) {
+		try {
+			boolean has = false;
+			for (Class<?> c : new ArrayList<>((ArrayList<Class<?>>) LOOKUP.findVarHandle(ClassLoader.class, "classes", ArrayList.class).get(loader))) {
+				if (c.getName().equals(name)) {
+					has = true;
+				}
+			}
+			if (loader == null)
+				loader = lookup.getClassLoader();
+			if (has) {
+				this.klass = Class.forName(name, false, loader);
+				this.handleName = klass.getName();
+				this.className = klass.getName();
+				this.loader = klass.getClassLoader();
+				this.bytes = getClassBytes(klass);
+			} else {
+				this.handleName = name;
+				this.className = name;
+				this.loader = loader;
+				this.bytes = getClassBytes(getJarPath(lookup), name);
+			}
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	public ClassHandle(String name, ClassLoader loader, byte[] bytes) {
 		try {
 			boolean has = false;
-			for (Class<?> c : ((ArrayList<Class<?>>) LOOKUP.findVarHandle(ClassLoader.class, "classes", ArrayList.class).get(loader))) {
+			for (Class<?> c : new ArrayList<>((ArrayList<Class<?>>) LOOKUP.findVarHandle(ClassLoader.class, "classes", ArrayList.class).get(loader))) {
 				if (c.getName().equals(name))
 					has = true;
 			}
 			if (has) {
 				this.klass = Class.forName(name, false, loader);
-				this.name = klass.getName();
+				this.handleName = klass.getName();
+				this.className = klass.getName();
 				this.loader = klass.getClassLoader();
 				this.bytes = getClassBytes(klass);
 			} else {
-				this.name = name;
+				this.handleName = name;
+				this.className = name;
 				this.loader = loader;
 				this.bytes = bytes;
 			}
@@ -154,7 +184,7 @@ public class ClassHandle {
 		ClassFileTransformer transformer = new ClassFileTransformer() {
 			@Override
 			public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws IllegalClassFormatException {
-				if (className.equals(name)) {
+				if (className.equals(ClassHandle.this.className)) {
 					return newBuf;
 				}
 				return classfileBuffer;
@@ -162,7 +192,7 @@ public class ClassHandle {
 
 			@Override
 			public byte[] transform(Module module, ClassLoader loader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws IllegalClassFormatException {
-				if (className.equals(name)) {
+				if (className.equals(ClassHandle.this.className)) {
 					return newBuf;
 				}
 				return classfileBuffer;
@@ -181,7 +211,8 @@ public class ClassHandle {
 		if (klass != null) {
 			return klass;
 		}
-		klass = (Class<?>) LOOKUP.findVirtual(ClassLoader.class, "defineClass", MethodType.methodType(Class.class, String.class, byte[].class, int.class, int.class, ProtectionDomain.class)).invoke(loader, name, bytes, 0, bytes.length, null);
+		klass = (Class<?>) LOOKUP.findVirtual(ClassLoader.class, "defineClass", MethodType.methodType(Class.class, String.class, byte[].class, int.class, int.class, ProtectionDomain.class)).invoke(loader, handleName, bytes, 0, bytes.length, null);
+		setClassName(className);
 		return klass;
 	}
 
@@ -189,16 +220,16 @@ public class ClassHandle {
 		if (klass != null) {
 			return klass;
 		}
-		if (hiddenClassMap.containsKey(name) && hiddenClassMap.get(name) != null) {
-			return hiddenClassMap.get(name);
+		if (hiddenClassMap.containsKey(handleName) && hiddenClassMap.get(handleName) != null) {
+			return hiddenClassMap.get(handleName);
 		}
 		int flags = 6;
 		if (loader == null || loader == ClassLoader.getPlatformClassLoader()) {
 			flags |= 8;
 		}
-		klass = (Class<?>) LOOKUP.findStatic(ClassLoader.class, "defineClass0", MethodType.methodType(Class.class, ClassLoader.class, Class.class, String.class, byte[].class, int.class, int.class, ProtectionDomain.class, boolean.class, int.class, Object.class)).invoke(loader, ClassHandle.class, name, bytes, 0, bytes.length, null, true, flags, null);
-		setName(name);
-		hiddenClassMap.put(name, klass);
+		klass = (Class<?>) LOOKUP.findStatic(ClassLoader.class, "defineClass0", MethodType.methodType(Class.class, ClassLoader.class, Class.class, String.class, byte[].class, int.class, int.class, ProtectionDomain.class, boolean.class, int.class, Object.class)).invoke(loader, ClassHandle.class, handleName, bytes, 0, bytes.length, null, true, flags, null);
+		setClassName(className);
+		hiddenClassMap.put(handleName, klass);
 		return klass;
 	}
 
@@ -220,14 +251,24 @@ public class ClassHandle {
 		return this;
 	}
 
-	public ClassHandle setName(String newName) throws Throwable {
-		LOOKUP.findVarHandle(Class.class, "name", String.class).set(klass, newName);
-		this.name = newName;
+	public ClassHandle setClassName(String newName) throws Throwable {
+		className = newName;
+		if (klass != null)
+			LOOKUP.findSetter(Class.class, "name", String.class).invoke(klass, className);
 		return this;
 	}
 
-	public String getName() {
-		return name;
+	public ClassHandle setHandleName(String newName) {
+		this.handleName = newName;
+		return this;
+	}
+
+	public String getHandleName() {
+		return handleName;
+	}
+
+	public String getClassName() {
+		return className;
 	}
 
 	public Class<?> toClass() {
