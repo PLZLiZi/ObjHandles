@@ -1,2 +1,6 @@
 {
+    "[java]": {
+        "editor.insertSpaces": false,
+        "editor.detectIndentation": false
+    }
 }

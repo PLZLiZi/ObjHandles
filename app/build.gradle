@@ -17,7 +17,7 @@ repositories {
 }
 
 base {
-    archivesName = 'classhandler'
+    archivesName = 'objhandles'
 }
 
 dependencies {
@@ -30,9 +30,6 @@ java {
     }
 }
 
-application {
-    mainClass = 'classshandler.App'
-}
 
 tasks.named('test') {
 }
@@ -40,8 +37,7 @@ tasks.named('test') {
 tasks.named('jar', Jar).configure {
     manifest {
         attributes([
-            'Main-Class' : 'plz.lizi.classhandle.ClassHandle',
-            'Agent-Class' : 'plz.lizi.classhandle.CallbackAgent',
+            'Agent-Class' : 'plz.lizi.objhandles.CallbackAgent',
             'Can-Redefine-Classes' : true,
             'Can-Retransform-Classes' : true,
         ])

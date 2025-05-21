@@ -3,7 +3,7 @@
 	"tasks": [
 		{
 			"type": "gradle",
-			"id": "d:\\PLZLiZi\\Java\\ClassHandleapp:buildapp",
+			"id": "d:\\PLZLiZi\\Java\\ObjHandlesapp:buildapp",
 			"script": "app:build",
 			"description": "Assembles and tests this project.",
 			"group": {
@@ -11,10 +11,10 @@
 				"isDefault": true
 			},
 			"project": "app",
-			"buildFile": "D:\\PLZLiZi\\Java\\ClassHandle\\app\\build.gradle",
-			"rootProject": "ClassHandle",
-			"projectFolder": "d:\\PLZLiZi\\Java\\ClassHandle",
-			"workspaceFolder": "d:\\PLZLiZi\\Java\\ClassHandle",
+			"buildFile": "D:\\PLZLiZi\\Java\\ObjHandles\\app\\build.gradle",
+			"rootProject": "ObjHandles",
+			"projectFolder": "d:\\PLZLiZi\\Java\\ObjHandles",
+			"workspaceFolder": "d:\\PLZLiZi\\Java\\ObjHandles",
 			"args": "",
 			"javaDebug": false,
 			"problemMatcher": [
