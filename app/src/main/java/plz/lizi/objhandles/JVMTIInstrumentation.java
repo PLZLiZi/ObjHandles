@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarFile;
 
-public class JVMTIInstrumentation implements Instrumentation {
+final class JVMTIInstrumentation implements Instrumentation {
 	protected final static List<ClassFileTransformer> transformers = new ArrayList<>();
 
 	public JVMTIInstrumentation() {
