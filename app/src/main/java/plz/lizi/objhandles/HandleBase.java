@@ -43,7 +43,7 @@ public final class HandleBase {
 	static Lookup LOOKUP = HandleBase.getLookup();
 	static Instrumentation INST;
 
-	public static void initAgent() {
+	public static void initINST() {
 		try {
 			Field f = Class.forName("sun.tools.attach.HotSpotVirtualMachine").getDeclaredField("ALLOW_ATTACH_SELF");
 			HandleBase.UNSAFE.putObject(HandleBase.UNSAFE.staticFieldBase(f), HandleBase.UNSAFE.staticFieldOffset(f), true);
@@ -57,7 +57,7 @@ public final class HandleBase {
 		}
 	}
 
-	public static void initAgent(Instrumentation inst) {
+	public static void initINST(Instrumentation inst) {
 		INST = inst;
 		if (INST == null) {
 			INST = new JVMTIInstrumentation();
@@ -365,7 +365,7 @@ public final class HandleBase {
 	}
 
 	public static void main(String[] args) {
-		initAgent(null);
+		initINST(null);
 		
 		Test.hello();
 		Test.hello();
