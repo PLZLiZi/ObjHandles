@@ -38,8 +38,16 @@ tasks.named('jar', Jar).configure {
     manifest {
         attributes([
             'Agent-Class' : 'plz.lizi.objhandles.CallbackAgent',
+            'Main-Class' : 'plz.lizi.objhandles.HandleBase',
             'Can-Redefine-Classes' : true,
             'Can-Retransform-Classes' : true,
         ])
     }
+}
+
+task preBuild{
+    exec {
+        commandLine 'D:\\PLZLiZi\\Java\\ObjHandles\\prebuild.cmd'
+    }
+    finalizedBy 'build'
 }

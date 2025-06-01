@@ -1,13 +1,18 @@
 package plz.lizi.objhandles;
 
 import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.instrument.ClassDefinition;
+import java.lang.instrument.ClassFileTransformer;
+import java.lang.instrument.IllegalClassFormatException;
 import java.lang.instrument.Instrumentation;
+import java.lang.instrument.UnmodifiableClassException;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
@@ -29,6 +34,8 @@ import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import com.sun.tools.attach.VirtualMachine;
+import plz.lizi.objhandles.javassist.ClassPool;
+import plz.lizi.objhandles.javassist.CtClass;
 import sun.misc.Unsafe;
 
 public final class HandleBase {
@@ -36,32 +43,24 @@ public final class HandleBase {
 	static Lookup LOOKUP = HandleBase.getLookup();
 	static Instrumentation INST;
 
-	public static void init(boolean agentMode) {
-		if (agentMode) {
-			try {
-				Field f = Class.forName("sun.tools.attach.HotSpotVirtualMachine").getDeclaredField("ALLOW_ATTACH_SELF");
-				HandleBase.UNSAFE.putObject(HandleBase.UNSAFE.staticFieldBase(f), HandleBase.UNSAFE.staticFieldOffset(f), true);
-				VirtualMachine vm = VirtualMachine.attach(String.valueOf(ProcessHandle.current().pid()));
-				vm.loadAgent(HandleBase.getJarPath());
-				vm.detach();
-			} catch (Exception e) {
-			}
-			if (INST == null) {
-				System.out.println("[OBJ HANDLE] Can't init INST env");
-			}
-		} else {
-			throw new RuntimeException("[OBJ HANDLE] No agent mode didn't support");
+	public static void initAgent() {
+		try {
+			Field f = Class.forName("sun.tools.attach.HotSpotVirtualMachine").getDeclaredField("ALLOW_ATTACH_SELF");
+			HandleBase.UNSAFE.putObject(HandleBase.UNSAFE.staticFieldBase(f), HandleBase.UNSAFE.staticFieldOffset(f), true);
+			VirtualMachine vm = VirtualMachine.attach(String.valueOf(ProcessHandle.current().pid()));
+			vm.loadAgent(HandleBase.getJarPath());
+			vm.detach();
+		} catch (Exception e) {
+		}
+		if (INST == null) {
+			System.out.println("[OBJ HANDLE] Can't init INST env");
 		}
 	}
 
-	static String dll() {
-		String arch = System.getProperty("os.arch");
-		if (arch.contains("64")) {
-			return "classhandle-x64.dll";
-		} else if (arch.contains("86") || arch.contains("32")) {
-			return "classhandle-x86.dll";
-		} else {
-			throw new RuntimeException("[OBJ HANDLE] System not support -> OS:" + System.getProperty("os.name") + ", JVM:" + System.getProperty("sun.arch.data.model") + ", OS_ARCH:" + System.getProperty("os.arch"));
+	public static void initAgent(Instrumentation inst) {
+		INST = inst;
+		if (INST == null) {
+			INST = new JVMTIInstrumentation();
 		}
 	}
 
@@ -96,6 +95,84 @@ public final class HandleBase {
 
 	static String realClassName(Class<?> klass) {
 		return klass.getName().split("\\$\\$")[0].split("\\$")[0].trim();
+	}
+	
+	static String fromVMName(String vmType) {
+		if (vmType == null || vmType.isEmpty()) {
+			return vmType;
+		}
+		switch (vmType) {
+			case "I":
+				return "int";
+			case "F":
+				return "float";
+			case "J":
+				return "long";
+			case "D":
+				return "double";
+			case "Z":
+				return "boolean";
+			case "B":
+				return "byte";
+			case "C":
+				return "char";
+			case "S":
+				return "short";
+			case "V":
+				return "void";
+		}
+		if (vmType.startsWith("[")) {
+			int arrayDepth = 0;
+			while (arrayDepth < vmType.length() && vmType.charAt(arrayDepth) == '[') {
+				arrayDepth++;
+			}
+			String elementType = fromVMName(vmType.substring(arrayDepth));
+			return elementType + "[]".repeat(arrayDepth);
+		}
+		if (vmType.startsWith("L") && vmType.endsWith(";")) {
+			String className = vmType.substring(1, vmType.length() - 1);
+			return className.replace('/', '.');
+		}
+		return vmType.replace('/', '.');
+	}
+
+	static String toVMName(String type) {
+		if (type == null || type.isEmpty()) {
+			return type;
+		}
+		switch (type) {
+			case "int":
+				return "I";
+			case "float":
+				return "F";
+			case "long":
+				return "J";
+			case "double":
+				return "D";
+			case "boolean":
+				return "Z";
+			case "byte":
+				return "B";
+			case "char":
+				return "C";
+			case "short":
+				return "S";
+			case "void":
+				return "V";
+		}
+		if (type.endsWith("[]")) {
+			int dimensions = 0;
+			while (type.endsWith("[]")) {
+				dimensions++;
+				type = type.substring(0, type.length() - 2);
+			}
+			String baseType = toVMName(type);
+			return "[".repeat(dimensions) + baseType;
+		}
+		if (type.contains(".")) {
+			return "L" + type.replace('.', '/') + ";";
+		}
+		return type;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -285,5 +362,30 @@ public final class HandleBase {
 			return new String[] { str, "" };
 		}
 		return new String[] { str.substring(0, index), str.substring(index + delimiter.length()) };
+	}
+
+	public static void main(String[] args) {
+		initAgent(null);
+		
+		Test.hello();
+		Test.hello();
+		Test.hello();
+		Test.hello();
+		Test.hello();
+		
+		ClassHandle handle = new ClassHandle(Test.class);
+		try {
+			CtClass ctClass = ClassPool.getDefault().makeClassIfNew(new ByteArrayInputStream(handle.getBytes()));
+			ctClass.getDeclaredMethod("hello").insertBefore("{ System.out.println(\"hello world\"); return; }");
+			handle.redefine(ctClass.toBytecode());
+		} catch (Throwable e) {
+			e.printStackTrace();
+		}
+
+		Test.hello();
+		Test.hello();
+		Test.hello();
+		Test.hello();
+		Test.hello();
 	}
 }

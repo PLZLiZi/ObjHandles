@@ -137,6 +137,11 @@ public final class ClassHandle {
 	}
 
 	public byte[] getBytes() {
+		if (bytes == null) {
+			try {
+				bytes = HandleBase.getClassBytes(klass);
+			} catch (Exception e) {}
+		}
 		return bytes;
 	}
 

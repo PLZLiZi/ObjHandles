@@ -3,9 +3,9 @@
 	"tasks": [
 		{
 			"type": "gradle",
-			"id": "d:\\PLZLiZi\\Java\\ObjHandlesapp:buildapp",
-			"script": "app:build",
-			"description": "Assembles and tests this project.",
+			"id": "d:\\PLZLiZi\\Java\\ObjHandlesapp:preBuildapp",
+			"script": "app:preBuild",
+			"description": "",
 			"group": {
 				"kind": "build",
 				"isDefault": true
@@ -20,7 +20,7 @@
 			"problemMatcher": [
 				"$gradle"
 			],
-			"label": "gradle: app:build"
+			"label": "gradle: app:preBuild"
 		}
 	]
 }
