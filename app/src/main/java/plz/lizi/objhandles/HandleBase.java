@@ -367,7 +367,7 @@ public final class HandleBase {
 	public static void main(String[] args) {
 		initINST(null);
 		
-		Test.hello();
+		/*Test.hello();
 		Test.hello();
 		Test.hello();
 		Test.hello();
@@ -386,6 +386,6 @@ public final class HandleBase {
 		Test.hello();
 		Test.hello();
 		Test.hello();
-		Test.hello();
+		Test.hello();*/
 	}
 }
