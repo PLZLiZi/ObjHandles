@@ -1,0 +1,26 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "gradle",
+			"id": "d:\\PLZLiZi\\Java\\ObjHandlesapp:preBuildapp",
+			"script": "app:preBuild",
+			"description": "",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"project": "app",
+			"buildFile": "D:\\PLZLiZi\\Java\\ObjHandles\\app\\build.gradle",
+			"rootProject": "ObjHandles",
+			"projectFolder": "d:\\PLZLiZi\\Java\\ObjHandles",
+			"workspaceFolder": "d:\\PLZLiZi\\Java\\ObjHandles",
+			"args": "",
+			"javaDebug": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"label": "gradle: app:preBuild"
+		}
+	]
+}

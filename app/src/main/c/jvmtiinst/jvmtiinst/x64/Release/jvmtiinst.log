@@ -1,0 +1,8 @@
+﻿  jvmtiinst.cpp
+    正在创建库 Build\jvmtiinst-x64.lib 和对象 Build\jvmtiinst-x64.exp
+  正在生成代码
+  1 of 275 functions ( 0.4%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    0 functions had inline decision re-evaluated but remain unchanged
+  已完成代码的生成
+  jvmtiinst.vcxproj -> D:\PLZLiZi\Java\ObjHandles\app\src\main\c\jvmtiinst\Build\jvmtiinst-x64.dll
