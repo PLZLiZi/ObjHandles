@@ -2,3 +2,4 @@
 *.pch
 *.db
 .vs/
+*.cmd
