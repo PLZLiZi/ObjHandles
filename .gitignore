@@ -3,3 +3,16 @@
 *.db
 .vs/
 *.cmd
+.vscode/
+.gradle/
+/lib/build/
+/lib/bin/
+/lib/test/
+/lib/src/main/c/jvmtiinst/.vs/
+/lib/src/main/c/jvmtiinst/Build/
+/lib/src/main/c/jvmtiinst/jvmtiinst/
+*.vcxproj
+*.vcxproj.user
+*.vcxproj.filters
+*.sln
+.gitignore
