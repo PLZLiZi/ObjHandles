@@ -2,7 +2,7 @@
 <Project>
   <ProjectOutputs>
     <ProjectOutput>
-      <FullPath>D:\PLZLiZi\Java\ObjHandles\app\src\main\c\jvmtiinst\Build\jvmtiinst-x64.dll</FullPath>
+      <FullPath>D:\PLZLiZi\Java\ObjHandles\src\main\c\jvmtiinst\Build\jvmtiinst-x64.dll</FullPath>
     </ProjectOutput>
   </ProjectOutputs>
   <ContentFiles />

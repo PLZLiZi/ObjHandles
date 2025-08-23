@@ -4,5 +4,5 @@
 // Windows 头文件
 #include <windows.h>
 #include "plz/plzbase.hpp"
-#include "plz/winpro.hpp"
-#include "plz/ezjni.hpp"
+#include "plz/sysutil.hpp"
+#include "plz/jniutil.hpp"

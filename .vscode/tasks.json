@@ -3,15 +3,15 @@
 	"tasks": [
 		{
 			"type": "gradle",
-			"id": "d:\\PLZLiZi\\Java\\ObjHandlesapp:preBuildapp",
-			"script": "app:preBuild",
-			"description": "",
+			"id": "d:\\PLZLiZi\\Java\\ObjHandlesbuildObjHandles",
+			"script": "build",
+			"description": "Assembles and tests this project.",
 			"group": {
 				"kind": "build",
 				"isDefault": true
 			},
-			"project": "app",
-			"buildFile": "D:\\PLZLiZi\\Java\\ObjHandles\\app\\build.gradle",
+			"project": "ObjHandles",
+			"buildFile": "D:\\PLZLiZi\\Java\\ObjHandles\\build.gradle",
 			"rootProject": "ObjHandles",
 			"projectFolder": "d:\\PLZLiZi\\Java\\ObjHandles",
 			"workspaceFolder": "d:\\PLZLiZi\\Java\\ObjHandles",
@@ -20,7 +20,7 @@
 			"problemMatcher": [
 				"$gradle"
 			],
-			"label": "gradle: app:preBuild"
+			"label": "gradle: build"
 		}
 	]
 }

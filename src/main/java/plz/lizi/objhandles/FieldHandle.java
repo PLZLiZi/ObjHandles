@@ -1,7 +1,6 @@
 package plz.lizi.objhandles;
 
 import java.lang.reflect.Field;
-import javax.management.RuntimeErrorException;
 import plz.lizi.objhandles.HandleBase.HandleInstance;
 import plz.lizi.objhandles.api.common.PLZBase;
 
