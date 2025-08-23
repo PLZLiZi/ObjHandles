@@ -11,4 +11,4 @@ plugins {
 }
 
 rootProject.name = 'ObjHandles'
-include('app')
+include('lib')
