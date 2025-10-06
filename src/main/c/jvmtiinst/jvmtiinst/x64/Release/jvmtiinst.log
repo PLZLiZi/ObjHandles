@@ -1,9 +1,0 @@
-﻿  pch.cpp
-  dllmain.cpp
-  jvmtiinst.cpp
-    正在创建库 Build\jvmtiinst-x64.lib 和对象 Build\jvmtiinst-x64.exp
-  正在生成代码
-  Previous IPDB was built with incompatible compiler, fall back to full compilation.
-  All 223 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
-  已完成代码的生成
-  jvmtiinst.vcxproj -> D:\PLZLiZi\Java\ObjHandles\src\main\c\jvmtiinst\Build\jvmtiinst-x64.dll

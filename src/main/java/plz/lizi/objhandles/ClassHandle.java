@@ -2,10 +2,7 @@ package plz.lizi.objhandles;
 
 import java.io.ByteArrayInputStream;
 import java.lang.instrument.ClassDefinition;
-import java.lang.instrument.ClassFileTransformer;
-import java.lang.instrument.IllegalClassFormatException;
 import java.lang.invoke.MethodType;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
@@ -13,26 +10,26 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import plz.lizi.objhandles.HandleBase.HandleInstance;
+import plz.lizi.objhandles.HandleBase.Handle;
 import plz.lizi.objhandles.api.common.PLZBase;
-import plz.lizi.objhandles.api.superbyte.ClassPool;
-import plz.lizi.objhandles.api.superbyte.CtClass;
+import plz.lizi.objhandles.api.javassist.ClassPool;
+import plz.lizi.objhandles.api.javassist.CtClass;
 
-public final class ClassHandle implements HandleInstance {
+public final class ClassHandle implements Handle {
 	private static final Map<String, Class<?>> HIDDEN_CLASS_MAP = new HashMap<>();
-	private Class<?> klass;
-	private byte[] bytes;
-	private String internalName;
-	private String className;
-	private ClassLoader loader;
+	private Class<?> _class;
+	private byte[] _bytes;
+	private String _internalName;
+	private String _className;
+	private ClassLoader _loader;
 
 	public ClassHandle(Class<?> klass) {
 		try {
-			this.klass = klass;
-			this.internalName = klass.getName();
-			this.className = internalName;
-			this.loader = klass.getClassLoader();
-			this.bytes = PLZBase.getClassBytes(klass, false);
+			this._class = klass;
+			this._internalName = klass.getName();
+			this._className = _internalName;
+			this._loader = klass.getClassLoader();
+			this._bytes = PLZBase.getClassBytes(klass, false);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
@@ -40,11 +37,11 @@ public final class ClassHandle implements HandleInstance {
 
 	public ClassHandle(String name) {
 		try {
-			this.klass = Class.forName(name);
-			this.internalName = klass.getName();
-			this.className = internalName;
-			this.loader = klass.getClassLoader();
-			this.bytes = PLZBase.getClassBytes(klass, false);
+			this._class = Class.forName(name);
+			this._internalName = _class.getName();
+			this._className = _internalName;
+			this._loader = _class.getClassLoader();
+			this._bytes = PLZBase.getClassBytes(_class, false);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
@@ -56,16 +53,16 @@ public final class ClassHandle implements HandleInstance {
 				loader = lookup.getClassLoader();
 			}
 			if (PLZBase.wasLoaded(name, loader)) {
-				this.klass = Class.forName(name, false, loader);
-				this.internalName = klass.getName();
-				this.className = klass.getName();
-				this.loader = klass.getClassLoader();
-				this.bytes = PLZBase.getClassBytes(klass, true);
+				this._class = Class.forName(name, false, loader);
+				this._internalName = _class.getName();
+				this._className = _class.getName();
+				this._loader = _class.getClassLoader();
+				this._bytes = PLZBase.getClassBytes(_class, true);
 			} else {
-				this.internalName = name;
-				this.className = name;
-				this.loader = loader;
-				this.bytes = PLZBase.getClassBytes(PLZBase.getJarPath(lookup), name);
+				this._internalName = name;
+				this._className = name;
+				this._loader = loader;
+				this._bytes = PLZBase.getClassBytes(PLZBase.getJarPath(lookup), name);
 			}
 		} catch (Exception e) {
 			throw new RuntimeException(e);
@@ -75,16 +72,16 @@ public final class ClassHandle implements HandleInstance {
 	public ClassHandle(String name, ClassLoader loader, byte[] bytes) {
 		try {
 			if (PLZBase.wasLoaded(name, loader)) {
-				this.klass = Class.forName(name, false, loader);
-				this.internalName = klass.getName();
-				this.className = klass.getName();
-				this.loader = klass.getClassLoader();
-				this.bytes = PLZBase.getClassBytes(klass, false);
+				this._class = Class.forName(name, false, loader);
+				this._internalName = _class.getName();
+				this._className = _class.getName();
+				this._loader = _class.getClassLoader();
+				this._bytes = PLZBase.getClassBytes(_class, false);
 			} else {
-				this.internalName = name;
-				this.className = name;
-				this.loader = loader;
-				this.bytes = bytes;
+				this._internalName = name;
+				this._className = name;
+				this._loader = loader;
+				this._bytes = bytes;
 			}
 		} catch (Exception e) {
 			throw new RuntimeException(e);
@@ -92,30 +89,13 @@ public final class ClassHandle implements HandleInstance {
 	}
 
 	public void redefine(byte[] newBuf) throws Throwable {
-		HandleBase.INST.redefineClasses(new ClassDefinition(klass, newBuf));
+		HandleBase.getInst().addDirectSupplier(_class, newBuf);
+		HandleBase.getInst().redefineClasses(new ClassDefinition(_class, newBuf));
 	}
 
 	public void retransform(byte[] newBuf) throws Throwable {
-		ClassFileTransformer transformer = new ClassFileTransformer() {
-			@Override
-			public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws IllegalClassFormatException {
-				if (className.equals(ClassHandle.this.className)) {
-					return newBuf;
-				}
-				return classfileBuffer;
-			}
-
-			@Override
-			public byte[] transform(Module module, ClassLoader loader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws IllegalClassFormatException {
-				if (className.equals(ClassHandle.this.className)) {
-					return newBuf;
-				}
-				return classfileBuffer;
-			}
-		};
-		HandleBase.INST.addTransformer(transformer, true);
-		HandleBase.INST.retransformClasses(klass);
-		HandleBase.INST.removeTransformer(transformer);
+		HandleBase.getInst().addDirectSupplier(_class, newBuf);
+		HandleBase.getInst().retransformClasses(_class);
 	}
 
 	public static Class<?> findHidden(String name) {
@@ -123,86 +103,60 @@ public final class ClassHandle implements HandleInstance {
 	}
 
 	public Class<?> define() throws Throwable {
-		if (klass != null) {
-			return klass;
+		if (_class != null) {
+			return _class;
 		}
-		klass = (Class<?>) PLZBase.LOOKUP.findVirtual(ClassLoader.class, "defineClass", MethodType.methodType(Class.class, String.class, byte[].class, int.class, int.class, ProtectionDomain.class)).invoke(loader, className, bytes, 0, bytes.length, null);
-		setClassName(className);
-		return klass;
+		_class = (Class<?>) PLZBase.LOOKUP.findVirtual(ClassLoader.class, "defineClass", MethodType.methodType(Class.class, String.class, byte[].class, int.class, int.class, ProtectionDomain.class)).invoke(_loader, _className, _bytes, 0, _bytes.length, null);
+		if (_class != null)
+			PLZBase.LOOKUP.findSetter(Class.class, "name", String.class).invoke(_class, _className);
+		return _class;
 	}
 
 	public Class<?> defineHidden() throws Throwable {
-		if (klass != null) {
-			return klass;
+		if (_class != null) {
+			return _class;
 		}
-		if (HIDDEN_CLASS_MAP.containsKey(internalName) && HIDDEN_CLASS_MAP.get(internalName) != null) {
-			return HIDDEN_CLASS_MAP.get(internalName);
+		if (HIDDEN_CLASS_MAP.containsKey(_internalName) && HIDDEN_CLASS_MAP.get(_internalName) != null) {
+			return HIDDEN_CLASS_MAP.get(_internalName);
 		}
 		int flags = 6;
-		if (loader == null || loader == ClassLoader.getPlatformClassLoader()) {
+		if (_loader == null || _loader == ClassLoader.getPlatformClassLoader()) {
 			flags |= 8;
 		}
-		klass = (Class<?>) PLZBase.LOOKUP.findStatic(ClassLoader.class, "defineClass0", MethodType.methodType(Class.class, ClassLoader.class, Class.class, String.class, byte[].class, int.class, int.class, ProtectionDomain.class, boolean.class, int.class, Object.class)).invoke(loader, ClassHandle.class, className, bytes, 0, bytes.length, null, true, flags, null);
-		setClassName(className);
-		HIDDEN_CLASS_MAP.put(internalName, klass);
-		return klass;
-	}
-
-	public ClassLoader getLoader() {
-		return loader;
-	}
-
-	public ClassHandle setLoader(ClassLoader loader) {
-		this.loader = loader;
-		return this;
+		_class = (Class<?>) PLZBase.LOOKUP.findStatic(ClassLoader.class, "defineClass0", MethodType.methodType(Class.class, ClassLoader.class, Class.class, String.class, byte[].class, int.class, int.class, ProtectionDomain.class, boolean.class, int.class, Object.class)).invoke(_loader, ClassHandle.class, _className, _bytes, 0, _bytes.length, null, true, flags, null);
+		if (_class != null)
+			PLZBase.LOOKUP.findSetter(Class.class, "name", String.class).invoke(_class, _className);
+		HIDDEN_CLASS_MAP.put(_internalName, _class);
+		return _class;
 	}
 
 	public byte[] getBytes() {
-		if (bytes == null) {
+		if (_bytes == null) {
 			try {
-				bytes = PLZBase.getClassBytes(klass, true);
-			} catch (Exception e) {}
+				_bytes = PLZBase.getClassBytes(_class, true);
+			} catch (Exception e) {
+				try {
+					_bytes = PLZBase.getClassBytes(_class, false);
+				} catch (Exception e2) {
+					PLZBase.throwEx(e2);
+				}
+			}
 		}
-		return bytes;
+		return _bytes;
 	}
 
-	public ClassHandle setBytes(byte[] bytes) {
-		this.bytes = bytes;
-		return this;
-	}
-
-	public ClassHandle setClassName(String newName) throws Throwable {
-		className = newName;
-		if (klass != null)
-			PLZBase.LOOKUP.findSetter(Class.class, "name", String.class).invoke(klass, className);
-		return this;
-	}
-
-	public ClassHandle setInternalName(String newName) {
-		this.internalName = newName;
-		return this;
-	}
-
-	public String getInternalName() {
-		return internalName;
-	}
-
-	public String getClassName() {
-		return className;
-	}
-
-	public Class<?> getRealClass() {
-		return klass;
+	public Class<?> zhisClass() {
+		return _class;
 	}
 
 	public CtClass getCtClass() {
-		return ClassPool.getDefault().getOrNull(className);
+		return ClassPool.getDefault().getOrNull(_className);
 	}
 
 	public CtClass getCtClass(ClassPool pool) {
-		return pool.getOrNull(className);
+		return pool.getOrNull(_className);
 	}
-	
+
 	public CtClass toCtClass() throws Exception {
 		return ClassPool.getDefault().makeClassIfNew(new ByteArrayInputStream(getBytes()));
 	}
@@ -227,44 +181,25 @@ public final class ClassHandle implements HandleInstance {
 			try {
 				retransform(ctClass.toBytecode());
 			} catch (Throwable e1) {
-				e.addSuppressed(e1);
-				throw new RuntimeException(e);
+				PLZBase.throwEx(e1);
 			}
 		}
 		ctClass.detach();
 	}
 
-	public Object getStaticField(String fname) {
-		return new FieldHandle(this, fname).getObject();
+	public Object invoke(String mname, Object... args) {
+		return new ObjectHandle(PLZBase.invoke(zhis(), mname, args));
 	}
 
-	public void setStaticField(String fname, Object o) {
-		new FieldHandle(this, fname).set(o);
-	}
-
-	public Object invokeStaticMethod(String mname, MethodType type, Object... args) throws Throwable {
-		Method m = klass.getDeclaredMethod(mname, type.parameterArray());
-		try {
-			return m.invoke(null, args);
-		} catch (Throwable e) {
-			try {
-				return PLZBase.LOOKUP.unreflect(m).invoke(args);
-			} catch (Throwable e1) {
-				e1.initCause(e);
-				throw e1;
-			}
-		}
-	}
-
-	public Object getObject() {
-		return null;
+	public Object zhis() {
+		return zhisClass();
 	}
 
 	public static List<Class<?>> getAllLoadedClasses() {
-		return Arrays.asList(HandleBase.INST.getAllLoadedClasses());
+		return Arrays.asList(HandleBase.getInst().getAllLoadedClasses());
 	}
 
 	public static List<Object> getClassInstances(Class<?> cls) {
-		return List.of(JVMTIInstrumentation.getClassInstances0(cls));
+		return List.of(InstrumentationImpl.getClassInstances0(cls));
 	}
 }

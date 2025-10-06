@@ -6,6 +6,7 @@ import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -14,6 +15,7 @@ import java.io.OutputStream;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -61,42 +63,33 @@ public class PLZBase {
 	public static Unsafe getUnsafe() {
 		if (UNSAFE != null)
 			return UNSAFE;
-		Unsafe instance = null;
 		try {
 			Constructor<Unsafe> c = Unsafe.class.getDeclaredConstructor();
 			c.setAccessible(true);
-			instance = c.newInstance();
+			Unsafe instance = c.newInstance();
+			return instance;
 		} catch (Throwable var3) {
-			var3.printStackTrace();
+			throw new RuntimeException(var3);
 		}
-		return instance;
 	}
 
 	public static MethodHandles.Lookup getLookup() {
 		try {
-			return (MethodHandles.Lookup) UNSAFE.getObjectVolatile(UNSAFE.staticFieldBase(MethodHandles.Lookup.class.getDeclaredField("IMPL_LOOKUP")), UNSAFE.staticFieldOffset(MethodHandles.Lookup.class.getDeclaredField("IMPL_LOOKUP")));
-		} catch (Exception e) {
-			try {
-				Constructor<MethodHandles.Lookup> c = MethodHandles.Lookup.class.getDeclaredConstructor();
-				c.setAccessible(true);
-				return c.newInstance();
-			} catch (Throwable var3) {
-				var3.printStackTrace();
-			}
+			Constructor<MethodHandles.Lookup> c = MethodHandles.Lookup.class.getDeclaredConstructor(Class.class, Class.class, int.class);
+			return (MethodHandles.Lookup) ((MethodHandles.Lookup) UNSAFE.getObjectVolatile(UNSAFE.staticFieldBase(MethodHandles.Lookup.class.getDeclaredField("IMPL_LOOKUP")), UNSAFE.staticFieldOffset(MethodHandles.Lookup.class.getDeclaredField("IMPL_LOOKUP")))).unreflectConstructor(c).invoke(Object.class, null, -1);
+		} catch (Throwable var3) {
+			throw new RuntimeException(var3);
 		}
-		return null;
 	}
 
 	public static void klassPtr(Object o, Class<?> clazz) {
 		if (o == null || clazz == null)
 			return;
-		if (o.getClass().equals(clazz) || clazz.isInstance(o))
+		if (o.getClass().equals(clazz))
 			return;
-			
-		UnsafeBase.ensureClassInitialized(clazz);
+		InternalUnsafe.ensureClassInitialized(clazz);
 		try {
-			int klass_ptr = UnsafeBase.getIntVolatile(UnsafeBase.allocateInstance(clazz), UnsafeBase.addressSize());
-			UnsafeBase.putIntVolatile(o, UnsafeBase.addressSize(), klass_ptr);
+			InternalUnsafe.putIntVolatile(o, 8, InternalUnsafe.getIntVolatile(InternalUnsafe.allocateInstance(clazz), 8));
 		} catch (Throwable ex) {
 			ex.printStackTrace();
 		}
@@ -153,11 +146,14 @@ public class PLZBase {
 		return r;
 	}
 
-	public static List<String> matchAllReplace2(String s, String from, String to) {
+	public static List<String> matchAllReplaceMin(String s, String from, String to) {
 		return from.isEmpty() ? Collections.singletonList(s) : s.contains(from) ? Stream.concat(matchAllReplace(s.substring(s.indexOf(from) + from.length()), from, to).stream().map(t -> s.substring(0, s.indexOf(from)) + from + t), matchAllReplace(s.substring(s.indexOf(from) + from.length()), from, to).stream().map(t -> s.substring(0, s.indexOf(from)) + to + t)).collect(Collectors.toList()) : Collections.singletonList(s);
 	}
 
 	public static byte[] getClassBytes(String jarPath, String className) throws Exception {
+		if (jarPath.equals("NoProtectionDomain")) {
+			throw new FileNotFoundException("ProtectionDomain not found in CLASS: " + className);
+		}
 		try (JarFile jarFile = new JarFile(jarPath)) {
 			String classPath = className.replace('.', '/') + ".class";
 			JarEntry entry = jarFile.getJarEntry(classPath);
@@ -180,21 +176,15 @@ public class PLZBase {
 	}
 
 	public static String getJarPath() {
-		try {
-			return PLZBase.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath().split("#")[0];
-		} catch (Throwable e) {
-			e.printStackTrace();
-		}
-		return "";
+		return getJarPath(PLZBase.class);
 	}
 
 	public static String getJarPath(Class<?> cls) {
 		try {
 			return cls.getProtectionDomain().getCodeSource().getLocation().toURI().getPath().split("#")[0];
 		} catch (Throwable e) {
-			e.printStackTrace();
 		}
-		return "";
+		return "NoProtectionDomain";
 	}
 
 	public static List<String> getClassNamesFromJar(String jarPath) {
@@ -210,7 +200,8 @@ public class PLZBase {
 				}
 				jarFile.close();
 				break;
-			} catch (Throwable t) {}
+			} catch (Throwable t) {
+			}
 		}
 		return classNames;
 	}
@@ -287,18 +278,6 @@ public class PLZBase {
 		} catch (Throwable t) {
 			throw new RuntimeException(t);
 		}
-	}
-
-	public static void println(Object o) {
-		System.out.println(o);
-	}
-
-	public static void println() {
-		System.out.println();
-	}
-
-	public static void print(Object o) {
-		System.out.print(o);
 	}
 
 	public static String input(String s) {
@@ -420,7 +399,7 @@ public class PLZBase {
 			}
 		}
 		for (Field field : next.getClass().getDeclaredFields()) {
-			if (oldFieldMap.containsKey(field.getName())) {
+			if (oldFieldMap.containsKey(field.getName()) && !Modifier.isStatic(field.getModifiers())) {
 				Object obj = oldFieldMap.get(field.getName());
 				try {
 					LOOKUP.unreflectSetter(field).invoke(next, obj);
@@ -519,7 +498,7 @@ public class PLZBase {
 			System.arraycopy(original, 0, newArray, 0, length);
 			return (T) newArray;
 		}
-		T copy = (T) UNSAFE.allocateInstance(original.getClass());
+		T copy = (T) InternalUnsafe.allocateInstance(original.getClass());
 		PLZBase.copyFields(original, copy);
 		return copy;
 	}
@@ -643,8 +622,8 @@ public class PLZBase {
 	}
 
 	public static Class<?> defineHiddenClass(ClassLoader loader, Class<?> lookup, String name, String newName, byte[] buf, ClassOption... options) {
-		if (HIDDEN_CLASSES_MAP.containsKey(name)) {
-			return HIDDEN_CLASSES_MAP.get(name);
+		if (HIDDEN_CLASSES_MAP.containsKey(newName != null ? newName : name)) {
+			return HIDDEN_CLASSES_MAP.get(newName != null ? newName : name);
 		}
 		int flags = 2 | ClassOption.optionsToFlag(Set.of(options));
 		if (loader == null || loader == ClassLoader.getPlatformClassLoader()) {
@@ -652,10 +631,7 @@ public class PLZBase {
 		}
 		try {
 			Class<?> klass = (Class<?>) ClassLoader_defineClass0.invoke(loader, lookup, newName != null ? newName : name, buf, 0, buf.length, null, true, flags, null);
-			if (newName != null) {
-				LOOKUP.findVarHandle(Class.class, "name", String.class).set(klass, newName);
-			}
-			HIDDEN_CLASSES_MAP.put(name, klass);
+			HIDDEN_CLASSES_MAP.put(newName != null ? newName : name, klass);
 			return klass;
 		} catch (Throwable e1) {
 			throw new RuntimeException(e1);
@@ -664,10 +640,132 @@ public class PLZBase {
 
 	public static Class<?> defineHiddenClassInPackage(ClassLoader loader, Class<?> lookup, String name, String newName, ClassOption... options) {
 		try {
-			return defineHiddenClass(loader, lookup, name, newName != null ? newName : name, getClassBytes(getJarPath(lookup), name), options);
+			return defineHiddenClass(loader, lookup, name, newName, getClassBytes(getJarPath(lookup), name), options);
 		} catch (Throwable e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	public static Class<?> findClass(String name) {
+		try {
+			return Class.forName(name);
+		} catch (ClassNotFoundException e) {
+			return null;
+		}
+	}
+
+	public static Field findField(Class<?> klass, String name) {
+		Class<?> current = klass;
+		while (current != null) {
+			try {
+				return current.getDeclaredField(name);
+			} catch (NoSuchFieldException e) {
+				current = current.getSuperclass();
+			}
+		}
+		throw new RuntimeException(new NoSuchFieldException(name));
+	}
+
+	public static Object getField(Object target, String name) {
+		return getField(target, findField(target instanceof Class cls ? cls : target.getClass(), name));
+	}
+
+	public static Object getField(Object target, Field f) {
+		boolean isStatic = target instanceof Class;
+		try {
+			MethodHandle getter = LOOKUP.unreflectGetter(f);
+			return isStatic ? getter.invoke() : getter.invoke(target);
+		} catch (Throwable e) {
+			Object base = isStatic ? UNSAFE.staticFieldBase(f) : target;
+			long offset = isStatic ? UNSAFE.staticFieldOffset(f) : UNSAFE.objectFieldOffset(f);
+			switch (f.getType().getName()) {
+				case "int":
+					return UNSAFE.getIntVolatile(base, offset);
+				case "long":
+					return UNSAFE.getLongVolatile(base, offset);
+				case "boolean":
+					return UNSAFE.getBooleanVolatile(base, offset);
+				case "byte":
+					return UNSAFE.getByteVolatile(base, offset);
+				case "char":
+					return UNSAFE.getCharVolatile(base, offset);
+				case "short":
+					return UNSAFE.getShortVolatile(base, offset);
+				case "float":
+					return UNSAFE.getFloatVolatile(base, offset);
+				case "double":
+					return UNSAFE.getDoubleVolatile(base, offset);
+				default:
+					return UNSAFE.getObjectVolatile(base, offset);
+			}
+		}
+	}
+
+	public static Object setField(Object target, String name, Object value) {
+		return setField(target, findField(target instanceof Class cls ? cls : target.getClass(), name), value);
+	}
+
+	public static Object setField(Object target, Field f, Object value) {
+		boolean isStatic = target instanceof Class;
+		Object old = getField(target, f);
+		try {
+			MethodHandle setter = LOOKUP.unreflectSetter(f);
+			if (target instanceof Class) {
+				setter.invoke(value);
+			} else {
+				setter.invoke(target, value);
+			}
+		} catch (Throwable e) {
+			Object base = isStatic ? UNSAFE.staticFieldBase(f) : target;
+			long offset = isStatic ? UNSAFE.staticFieldOffset(f) : UNSAFE.objectFieldOffset(f);
+			switch (f.getType().getName()) {
+				case "int":
+					UNSAFE.putIntVolatile(base, offset, (int) value);
+				case "long":
+					UNSAFE.putLongVolatile(base, offset, (long) value);
+				case "boolean":
+					UNSAFE.putBooleanVolatile(base, offset, (boolean) value);
+				case "byte":
+					UNSAFE.putByteVolatile(base, offset, (byte) value);
+				case "char":
+					UNSAFE.putCharVolatile(base, offset, (char) value);
+				case "short":
+					UNSAFE.putShortVolatile(base, offset, (short) value);
+				case "float":
+					UNSAFE.putFloatVolatile(base, offset, (float) value);
+				case "double":
+					UNSAFE.putDoubleVolatile(base, offset, (double) value);
+				default:
+					UNSAFE.putObjectVolatile(base, offset, value);
+			}
+		}
+		return old;
+	}
+
+	public static Method findMethod(Class<?> klass, String name, Class<?>... argTypes) {
+		final int argLen = argTypes.length;
+		Class<?> current = klass;
+		while (current != null) {
+			for (Method m : current.getDeclaredMethods()) {
+				if (!m.getName().equals(name))
+					continue;
+				Class<?>[] declared = m.getParameterTypes();
+				if (declared.length != argLen)
+					continue;
+				boolean match = true;
+				for (int i = 0; i < argLen; i++) {
+					Class<?> provided = argTypes[i];
+					if (provided != null && provided != Object.class && !declared[i].isAssignableFrom(provided)) {
+						match = false;
+						break;
+					}
+				}
+				if (match)
+					return m;
+			}
+			current = current.getSuperclass();
+		}
+		throw new RuntimeException(new NoSuchMethodException(name));
 	}
 
 	public static Object invoke(Object target, String name, Object... args) {
@@ -677,9 +775,8 @@ public class PLZBase {
 			argTypes[i] = args[i].getClass();
 		}
 		try {
-			Method method = klass.getDeclaredMethod(name, argTypes);
-			MethodHandle methodHandle;
-			methodHandle = LOOKUP.unreflect(method);
+			Method method = findMethod(klass, name, argTypes);
+			MethodHandle methodHandle = LOOKUP.unreflect(method);
 			if (target instanceof Class) {
 				return methodHandle.invokeWithArguments(args);
 			} else {
@@ -688,63 +785,9 @@ public class PLZBase {
 				System.arraycopy(args, 0, combinedArgs, 1, args.length);
 				return methodHandle.invokeWithArguments(combinedArgs);
 			}
-		} catch (NoSuchMethodException e) {
-			Method[] methods = klass.getDeclaredMethods();
-			for (Method m : methods) {
-				if (m.getName().equals(name) && m.getParameterCount() == args.length) {
-					boolean compatible = true;
-					Class<?>[] parameterTypes = m.getParameterTypes();
-					for (int i = 0; i < args.length; i++) {
-						if (!parameterTypes[i].isAssignableFrom(argTypes[i]) && !(parameterTypes[i].isPrimitive() && isWrapper(argTypes[i], parameterTypes[i]))) {
-							compatible = false;
-							break;
-						}
-					}
-					if (compatible) {
-						try {
-							MethodHandle methodHandle = LOOKUP.unreflect(m);
-							if (target instanceof Class) {
-								return methodHandle.invokeWithArguments(args);
-							} else {
-								Object[] combinedArgs = new Object[args.length + 1];
-								combinedArgs[0] = target;
-								System.arraycopy(args, 0, combinedArgs, 1, args.length);
-								return methodHandle.invokeWithArguments(combinedArgs);
-							}
-						} catch (Throwable ex) {
-							throw new RuntimeException(ex);
-						}
-					}
-				}
-			}
-			throw new RuntimeException(e);
 		} catch (Throwable e) {
 			throw new RuntimeException(e);
 		}
-	}
-
-	public static boolean isWrapper(Class<?> wrapper, Class<?> primitive) {
-		try {
-			if (primitive == int.class && wrapper == Integer.class)
-				return true;
-			if (primitive == long.class && wrapper == Long.class)
-				return true;
-			if (primitive == double.class && wrapper == Double.class)
-				return true;
-			if (primitive == float.class && wrapper == Float.class)
-				return true;
-			if (primitive == boolean.class && wrapper == Boolean.class)
-				return true;
-			if (primitive == byte.class && wrapper == Byte.class)
-				return true;
-			if (primitive == short.class && wrapper == Short.class)
-				return true;
-			if (primitive == char.class && wrapper == Character.class)
-				return true;
-		} catch (Exception e) {
-			return false;
-		}
-		return false;
 	}
 
 	public static byte[] readFileBytes(String fileName) throws IOException {
@@ -779,5 +822,68 @@ public class PLZBase {
 
 	public static void writeFileBytes(String fileName, byte[] bytes) throws IOException {
 		writeFileBytes(fileName, bytes, false);
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T> T[] reverse(T[] original) {
+		if (original == null) {
+			return null;
+		}
+		T[] reversed = (T[]) Array.newInstance(original.getClass().getComponentType(), original.length);
+		for (int i = 0; i < original.length; i++) {
+			reversed[i] = original[original.length - 1 - i];
+		}
+		return reversed;
+	}
+
+	public static int[] reverse(int[] original) {
+		if (original == null) {
+			return null;
+		}
+		int[] reversed = new int[original.length];
+		for (int i = 0; i < original.length; i++) {
+			reversed[i] = original[original.length - 1 - i];
+		}
+		return reversed;
+	}
+
+	public static int[] v2mem(long num, boolean lendian, int sz) {
+		int numBytes = sz;
+		int[] mem = new int[numBytes];
+		if (lendian) {
+			for (int i = 0; i < numBytes; i++) {
+				mem[i] = (int) ((num >> (i * 8)) & 0xFF);
+			}
+		} else {
+			for (int i = 0; i < numBytes; i++) {
+				mem[i] = (int) ((num >> ((numBytes - 1 - i) * 8)) & 0xFF);
+			}
+		}
+		return mem;
+	}
+
+	public static long mem2v(int[] mem, boolean lendian) {
+		if (mem == null || mem.length == 0) {
+			return 0L;
+		}
+		long value = 0L;
+		int length = Math.min(mem.length, 8);
+		if (lendian) {
+			for (int i = 0; i < length; i++) {
+				int byteValue = mem[i] & 0xFF;
+				value |= (long) byteValue << (i * 8);
+			}
+		} else {
+			for (int i = 0; i < length; i++) {
+				int byteValue = mem[length - 1 - i] & 0xFF;
+				value |= (long) byteValue << (i * 8);
+			}
+		}
+		return value;
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <E extends Throwable> void throwEx(Throwable err) throws E {
+		throw (E) err;
 	}
 }
