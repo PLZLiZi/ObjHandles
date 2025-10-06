@@ -1,6 +1,0 @@
-Manifest-Version: 1.0
-Agent-Class: plz.lizi.objhandles.AgentCallback
-Main-Class: plz.lizi.objhandles.HandleBase
-Can-Redefine-Classes: true
-Can-Retransform-Classes: true
-
