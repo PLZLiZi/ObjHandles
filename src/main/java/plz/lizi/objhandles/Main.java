@@ -14,7 +14,7 @@ public class Main {
 			isRemove = true;
 		}
 		
-		public boolean isRemoved() {
+		public final boolean isRemoved() {
 			return isRemove;
 		}
 	}
@@ -23,11 +23,6 @@ public class Main {
 		@Override
 		public float getHealth() {
 			return 114514.0F;
-		}
-
-		@Override
-		public boolean isRemoved() {
-			return false;
 		}
 	}
 
@@ -39,7 +34,7 @@ public class Main {
 		System.out.println("Removed : " + a.isRemoved());
 		new ClassHandle(a.getClass()).configure(ctClass -> {
 			try {
-				ctClass.getDeclaredMethod("setRemoved").setBody("{}");
+				ctClass.getDeclaredMethod("isRemoved").setBody("{ return false; }");
 			} catch (Throwable e) {
 				PLZBase.throwEx(e);
 			}
