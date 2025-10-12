@@ -1,0 +1,91 @@
+package plz.lizi.objhandles;
+
+import java.lang.reflect.Field;
+import plz.lizi.objhandles.HandleBase.HandleInstance;
+import plz.lizi.objhandles.api.common.PLZBase;
+
+public class FieldHandle implements HandleInstance {
+	private Field field;
+	private HandleInstance handle;
+
+	private FieldHandle(ObjectHandle objHandle, String fieldName) {
+		this.field = getFieldRef(objHandle.zhisClass(), fieldName);
+		this.handle = objHandle;
+	}
+
+	private FieldHandle(ClassHandle clsHandle, String fieldName) {
+		this.field = getFieldRef(clsHandle.zhisClass(), fieldName);
+		this.handle = clsHandle;
+	}
+
+	public FieldHandle(String fieldPath) {
+		String[] paths = PLZBase.splitLast(fieldPath, ".");
+		this.handle = new ClassHandle(paths[0]);
+		this.field = getFieldRef(this.handle.zhisClass(), paths[1]);
+	}
+
+	public FieldHandle field(String fname) {
+		return new FieldHandle(new ObjectHandle(zhis()), fname);
+	}
+
+	public Object zhis() {
+		try {
+			field.setAccessible(true);
+			return field.get(handle.zhis());
+		} catch (Exception e) {
+			try {
+				if (handle.zhis() == null) {
+					return PLZBase.LOOKUP.unreflectGetter(field).invoke();
+				}
+				return PLZBase.LOOKUP.unreflectGetter(field).invoke(handle.zhis() == null ? new Object[] {} : handle.zhis());
+			} catch (Throwable e1) {
+				try {
+					Object base = handle.zhis() == null ? PLZBase.UNSAFE.staticFieldBase(field) : handle.zhis();
+					long offset = handle.zhis() == null ? PLZBase.UNSAFE.staticFieldOffset(field) : PLZBase.UNSAFE.objectFieldOffset(field);
+					return PLZBase.UNSAFE.getObject(base, offset);
+				} catch (Exception e2) {
+					throw e2;
+				}
+			}
+		}
+	}
+
+	public void set(Object value) {
+		try {
+			field.setAccessible(true);
+			field.set(handle.zhis(), value);
+		} catch (Exception e) {
+			try {
+				if (handle.zhis() == null) {
+					PLZBase.LOOKUP.unreflectSetter(field).invoke(value);
+				} else {
+					PLZBase.LOOKUP.unreflectSetter(field).invoke(handle.zhis(), value);
+				}
+			} catch (Throwable e1) {
+				try {
+					Object base = handle.zhis() == null ? PLZBase.UNSAFE.staticFieldBase(field) : handle.zhis();
+					long offset = handle.zhis() == null ? PLZBase.UNSAFE.staticFieldOffset(field) : PLZBase.UNSAFE.objectFieldOffset(field);
+					PLZBase.UNSAFE.putObject(base, offset, value);
+				} catch (Exception e2) {
+					throw e2;
+				}
+			}
+		}
+	}
+
+	public Class<?> zhisClass() {
+		return zhis().getClass();
+	}
+
+	public static Field getFieldRef(Class<?> klass, String fname) {
+		Class<?> currentClass = klass;
+		while (currentClass != null) {
+			try {
+				return currentClass.getDeclaredField(fname);
+			} catch (NoSuchFieldException e) {
+				currentClass = currentClass.getSuperclass();
+			}
+		}
+		return null;
+	}
+}
